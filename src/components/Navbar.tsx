@@ -74,7 +74,7 @@ export default function Navbar() {
 
           <div className="hidden lg:block">
             <Link
-              href="/create-event"
+              href="/teaser"
               className="bg-gradient-to-r from-purple-600 to-pink-600 
                          hover:from-purple-500 hover:to-pink-500
                          text-white font-bold px-8 py-3.5 rounded-full 
@@ -135,7 +135,7 @@ export default function Navbar() {
 
     {/* Full-width CTA button */}
     <Link
-      href="/create-event"
+     href="/teaser"
       onClick={() => setIsOpen(false)}
       className="mt-12 mx-auto bg-gradient-to-r from-purple-600 to-pink-600 
                  hover:from-purple-500 hover:to-pink-500

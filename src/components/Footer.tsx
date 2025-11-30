@@ -55,7 +55,7 @@ export default function Footer() {
             <h3 className="text-xl font-bold mb-4">Explore</h3> {/* Reduced size & margin */}
             <ul className="space-y-3 text-pink-200"> {/* Reduced spacing */}
               <li><Link href="/events" className="hover:text-white transition">All Events</Link></li>
-              <li><Link href="/create-event" className="hover:text-white transition">Create Event</Link></li>
+              <li><Link href="/teaser" className="hover:text-white transition">Create Event</Link></li>
               <li><Link href="/about" className="hover:text-white transition">About Us</Link></li>
             </ul>
           </div>

@@ -56,11 +56,6 @@ export default function Checkout() {
   const priceStrClean = priceStr.replace(/[^0-9]/g, "") || "0";
 
   const [orderIdStr] = useState(() => Array.isArray(orderId) ? orderId[0] : orderId || `ORD-${Date.now()}`);
-
-
-
-
-
   const [formData, setFormData] = useState({ fullName: "", email: "", phone: "" });
   const [loading, setLoading] = useState(false);
 
@@ -111,18 +106,38 @@ export default function Checkout() {
       },
       reference: orderIdStr,
       logo: "https://sahmtickethub.online/logo-white.png",
-      callback: (_response: PaystackResponse) => {
-        void _response;
-        router.push(
-          `/bag/${orderIdStr}?event=${eventIdStr}&type=${encodeURIComponent(ticketTypeStr)}&price=${encodeURIComponent(priceStr)}&qty=${qty}`
-        );
+      callback: async (response) => {
+        console.log("Payment completed:", response.reference);
+        try {
+          // Send ticket via API
+          await fetch('/api/send-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: formData.email,
+              orderId: orderIdStr,
+              ticketDetails: {
+                eventTitle: ticketTypeStr,
+                ticketType: ticketTypeStr,
+                tickets: qty,
+                totalPaid: formattedTotal
+              }
+            })
+          });
+        } catch (err) {
+          console.error("Failed to send ticket email", err);
+        } finally {
+          // Redirect to ticket page
+          router.push(
+            `/bag/${orderIdStr}?event=${eventIdStr}&type=${encodeURIComponent(ticketTypeStr)}&price=${encodeURIComponent(priceStr)}&qty=${qty}`
+          );
+        }
       },
       onClose: () => setLoading(false),
     });
 
     handler.openIframe();
   };
-
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +164,7 @@ export default function Checkout() {
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 pt-4 lg:pt-6">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
@@ -157,7 +173,6 @@ export default function Checkout() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900">Checkout</h1>
           <p className="text-xl sm:text-2xl md:text-3xl text-gray-700 mt-2">{ticketTypeStr}</p>
           <p className="text-lg text-gray-600 mt-1">Quantity: {qty}</p>
-
         </motion.div>
 
         <div className="grid lg:grid-cols-2 gap-10">
@@ -220,8 +235,7 @@ export default function Checkout() {
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-3xl p-6 sm:p-8 text-center">
                   <p className="text-lg font-bold text-gray-700 mb-4">Pay with any method</p>
                   <div className="grid grid-cols-3 gap-4 sm:gap-6">
-                    <div className="bg-white p-4 rounded-2xl shadow-lg">
-                      <CreditCard className="mx-auto mb-1 text-purple-600" size={32} />
+                    <div className="bg-white p-4 rounded-2xl shadow-lg"> <CreditCard className="mx-auto mb-1 text-purple-600" size={32} />
                       <span className="text-sm font-black">Card</span>
                     </div>
                     <div className="bg-white p-4 rounded-2xl shadow-lg">
@@ -254,7 +268,6 @@ export default function Checkout() {
                   )}
                 </motion.button>
               </form>
-
             </div>
           </motion.div>
 

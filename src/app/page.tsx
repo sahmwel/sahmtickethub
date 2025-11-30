@@ -251,7 +251,7 @@ export default function Home() {
           transition={{ delay: 0.7 }}
           className="mt-10 flex flex-col sm:flex-row gap-4 justify-center"
         >
-          <Link href="/create-event" className="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-8 py-4 rounded-full shadow-xl hover:scale-105 transition">
+          <Link href="/teaser" className="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold px-8 py-4 rounded-full shadow-xl hover:scale-105 transition">
             <Plus className="w-6 h-6" /> Create Event
           </Link>
           <Link href="/events" className="bg-black text-white font-bold px-10 py-4 rounded-full shadow-xl hover:scale-105 transition">

@@ -1,13 +1,12 @@
 'use client';
 
 import Link from "next/link";
-import Image from "next/image";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import QRCode from "react-qr-code";
-import { ArrowLeft, Calendar, MapPin, Car, Share2, Download, CheckCircle } from "lucide-react";
-import { events as allEvents } from "@/components/data/events";
+import { Calendar, MapPin, Car, Share2, Download, CheckCircle } from "lucide-react";
+import { supabaseClient } from '@/lib/supabaseClient'; // <- use your client
 
 interface Order {
   id: string;
@@ -26,8 +25,6 @@ interface Order {
 
 export default function Bag() {
   const { orderId } = useParams<{ orderId: string }>();
-  const searchParams = useSearchParams();
-
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,58 +34,61 @@ export default function Bag() {
       return;
     }
 
-    const eventId = searchParams.get("event");
-    const ticketType = searchParams.get("type");
-    const price = searchParams.get("price");
-    const qty = parseInt(searchParams.get("qty") || "1", 10);
+    const fetchOrder = async () => {
+      try {
+        // Use the imported supabaseClient
+       const { data: orderData, error } = await supabaseClient
+  .from('orders')
+  .select(`
+    id,
+    event_id,
+    ticket_type,
+    quantity,
+    total_paid,
+    events!inner ( title, location, venue, date, time, lat, lng )
+  `)
+  .eq('id', orderId)
+  .single();
 
-    if (!eventId || !ticketType || !price) {
-      setLoading(false);
-      return;
-    }
 
-    const event = allEvents.find(e => e.id === eventId);
-    if (!event) {
-      setLoading(false);
-      return;
-    }
+        if (error || !orderData) {
+          console.error(error);
+          setOrder(null);
+          setLoading(false);
+          return;
+        }
 
-    const newOrder: Order = {
-      id: orderId,
-      eventId: event.id,
-      eventTitle: event.title,
-      location: event.location,
-      venue: event.venue || event.address || "Venue TBC",
-      date: new Date(event.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-      time: event.time || "6:00 PM",
-      tickets: qty,
-      ticketType: decodeURIComponent(ticketType),
-      totalPaid: decodeURIComponent(price),
-      lat: event.lat,
-      lng: event.lng,
+       const event = orderData.events[0]; // <-- grab first event
+
+const formattedOrder: Order = {
+  id: orderData.id,
+  eventId: orderData.event_id,
+  eventTitle: event.title,
+  location: event.location,
+  venue: event.venue || "Venue TBC",
+  date: new Date(event.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+  time: event.time || "6:00 PM",
+  tickets: orderData.quantity,
+  ticketType: orderData.ticket_type,
+  totalPaid: orderData.total_paid,
+  lat: event.lat,
+  lng: event.lng,
+};
+
+        setOrder(formattedOrder);
+      } catch (err) {
+        console.error(err);
+        setOrder(null);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setTimeout(() => {
-      setOrder(newOrder);
-      setLoading(false);
-    }, 800);
-  }, [orderId, searchParams]);
+    void fetchOrder();
+  }, [orderId]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-        <div className="text-2xl font-black text-purple-600">Preparing your ticket...</div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 text-red-600 text-2xl font-black">
-        Invalid order — please try again
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Fetching your ticket...</div>;
+  if (!order) return <div className="min-h-screen flex items-center justify-center text-red-600">Ticket not found</div>;
 
   const uberUrl = order.lat && order.lng
     ? `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${order.lat}&dropoff[longitude]=${order.lng}&dropoff[nickname]=${encodeURIComponent(order.venue || order.location)}`
@@ -102,12 +102,12 @@ export default function Bag() {
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", duration: 0.8 }}>
             <CheckCircle className="w-24 h-24 mx-auto mb-6" />
           </motion.div>
-          <h1 className="text-5xl md:text-6xl font-black mb-4">You're In!</h1>
+          <h1 className="text-5xl md:text-6xl font-black mb-4">{`You're In!`}</h1>
           <p className="text-xl md:text-2xl opacity-90">Your tickets are confirmed. Get ready for an unforgettable night.</p>
         </div>
       </section>
 
-      {/* Main Ticket Card */}
+      {/* Ticket Card */}
       <section className="py-16 -mt-10 relative z-10">
         <div className="max-w-2xl mx-auto px-6">
           <motion.div
@@ -117,18 +117,14 @@ export default function Bag() {
             className="bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-purple-100"
           >
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-8 text-white">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-3xl md:text-4xl font-black">{order.eventTitle}</h2>
-                  <p className="text-xl opacity-90 mt-2">{order.ticketType}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm opacity-80">Order ID</p>
-                  <p className="text-lg font-mono font-bold break-all">
-                    {order.id.slice(0, 16).toUpperCase()}...
-                  </p>
-                </div>
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-8 text-white flex justify-between items-start">
+              <div>
+                <h2 className="text-3xl md:text-4xl font-black">{order.eventTitle}</h2>
+                <p className="text-xl opacity-90 mt-2">{order.ticketType}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm opacity-80">Order ID</p>
+                <p className="text-lg font-mono font-bold break-all">{order.id.slice(0, 16).toUpperCase()}...</p>
               </div>
             </div>
 
@@ -163,9 +159,7 @@ export default function Bag() {
 
               {/* Ticket Summary */}
               <div className="text-center py-6 border-t-2 border-dashed border-gray-300">
-                <p className="text-4xl font-black text-purple-600">
-                  {order.tickets} Ticket{order.tickets > 1 ? "s" : ""}
-                </p>
+                <p className="text-4xl font-black text-purple-600">{order.tickets} Ticket{order.tickets > 1 ? "s" : ""}</p>
                 <p className="text-2xl font-bold mt-2">Total Paid: {order.totalPaid}</p>
               </div>
             </div>
