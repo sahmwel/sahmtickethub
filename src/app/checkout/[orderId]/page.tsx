@@ -84,60 +84,68 @@ export default function Checkout() {
   }, []);
 
   const payWithPaystack = () => {
-    if (!window.PaystackPop) {
-      alert("Paystack is not loaded yet. Try again.");
-      setLoading(false);
-      return;
+  if (!window.PaystackPop) {
+    alert("Paystack is not loaded yet. Try again.");
+    setLoading(false);
+    return;
+  }
+
+  // Async function to send the ticket via API
+  const sendTicketEmail = async () => {
+    try {
+      await fetch('/api/send-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          orderId: orderIdStr,
+          ticketDetails: {
+            eventTitle: ticketTypeStr,
+            ticketType: ticketTypeStr,
+            tickets: qty,
+            totalPaid: formattedTotal
+          }
+        })
+      });
+    } catch (err) {
+      console.error("Failed to send ticket email", err);
+    } finally {
+      // Redirect to ticket page after sending
+      router.push(
+        `/bag/${orderIdStr}?event=${eventIdStr}&type=${encodeURIComponent(ticketTypeStr)}&price=${encodeURIComponent(priceStr)}&qty=${qty}`
+      );
     }
-
-    const handler = window.PaystackPop.setup({
-      key: process.env.NEXT_PUBLIC_PAYSTACK_KEY!,
-      email: formData.email || "customer@sahmtickethub.online",
-      amount: totalAmount * 100,
-      channels: ["card", "bank_transfer", "ussd", "mobile_money", "opay", "qr", "bank"],
-      metadata: {
-        custom_fields: [
-          { display_name: "Event ID", variable_name: "event_id", value: eventIdStr },
-          { display_name: "Ticket Type", variable_name: "ticket_type", value: ticketTypeStr },
-          { display_name: "Quantity", variable_name: "quantity", value: qty },
-          { display_name: "Customer Name", variable_name: "customer_name", value: formData.fullName },
-          { display_name: "Phone", variable_name: "phone", value: formData.phone },
-        ],
-      },
-      reference: orderIdStr,
-      logo: "https://sahmtickethub.online/logo-white.png",
-      callback: async (response) => {
-        console.log("Payment completed:", response.reference);
-        try {
-          // Send ticket via API
-          await fetch('/api/send-ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: formData.email,
-              orderId: orderIdStr,
-              ticketDetails: {
-                eventTitle: ticketTypeStr,
-                ticketType: ticketTypeStr,
-                tickets: qty,
-                totalPaid: formattedTotal
-              }
-            })
-          });
-        } catch (err) {
-          console.error("Failed to send ticket email", err);
-        } finally {
-          // Redirect to ticket page
-          router.push(
-            `/bag/${orderIdStr}?event=${eventIdStr}&type=${encodeURIComponent(ticketTypeStr)}&price=${encodeURIComponent(priceStr)}&qty=${qty}`
-          );
-        }
-      },
-      onClose: () => setLoading(false),
-    });
-
-    handler.openIframe();
   };
+
+  // Set up Paystack payment
+  const handler = window.PaystackPop.setup({
+    key: process.env.NEXT_PUBLIC_PAYSTACK_KEY!,
+    email: formData.email || "customer@sahmtickethub.online",
+    amount: totalAmount * 100,
+    channels: ["card", "bank_transfer", "ussd", "mobile_money", "opay", "qr", "bank"],
+    metadata: {
+      custom_fields: [
+        { display_name: "Event ID", variable_name: "event_id", value: eventIdStr },
+        { display_name: "Ticket Type", variable_name: "ticket_type", value: ticketTypeStr },
+        { display_name: "Quantity", variable_name: "quantity", value: qty },
+        { display_name: "Customer Name", variable_name: "customer_name", value: formData.fullName },
+        { display_name: "Phone", variable_name: "phone", value: formData.phone },
+      ],
+    },
+    reference: orderIdStr,
+    logo: "https://sahmtickethub.online/logo-white.png",
+    
+    callback: function(response) {
+      console.log("Payment response:", response);
+      void sendTicketEmail(); // Call async function
+    },
+    
+    onClose: () => setLoading(false),
+  });
+
+  handler.openIframe();
+};
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
