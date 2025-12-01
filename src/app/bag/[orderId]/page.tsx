@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import QRCode from "react-qr-code";
 import { Calendar, MapPin, Car, Share2, Download, CheckCircle } from "lucide-react";
-import { supabaseClient } from '@/lib/supabaseClient'; // <- use your client
+import { supabase } from '@/lib/supabaseClient'; 
 
 interface Order {
   id: string;
@@ -37,7 +37,7 @@ export default function Bag() {
     const fetchOrder = async () => {
       try {
         // Use the imported supabaseClient
-       const { data: orderData, error } = await supabaseClient
+       const { data: orderData, error } = await supabase
   .from('orders')
   .select(`
     id,
