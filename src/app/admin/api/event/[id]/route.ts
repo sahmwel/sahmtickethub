@@ -1,56 +1,100 @@
+// src/app/admin/api/event/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string }}) {
-  const { id } = params;
-  try {
-    const { data, error } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', id)
-      .single();
+// Define the row type (you can also import it from generated types)
+type EventRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  date: string | null;
+  location: string | null;
+  venue: string | null;
+  tickets: number | null;
+  lat: number | null;
+  lng: number | null;
+  created_at: string;
+};
 
-    if (error) throw error;
+type EventUpdate = Partial<Omit<EventRow, 'id' | 'created_at'>>;
 
-    // Use `data` in the response
-    return NextResponse.json(data);
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to fetch event', details: err }, { status: 500 });
+// GET
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const { data, error } = await supabase
+    .from('events')                    // ← Remove the generic here
+    .select('*')
+    .eq('id', id)
+    .single<EventRow>();               // ← Type the result instead
+
+  if (error || !data) {
+    return NextResponse.json(
+      { error: 'Event not found', details: error?.message },
+      { status: 404 }
+    );
   }
+
+  return NextResponse.json(data);
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string }}) {
-  const { id } = params;
+// PATCH
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  let body: EventUpdate;
+
   try {
-    const body = await req.json();
-    const { data, error } = await supabase
-      .from('events')
-      .update(body)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Use `data` in the response
-    return NextResponse.json(data);
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to update event', details: err }, { status: 500 });
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
+
+  if (Object.keys(body).length === 0) {
+    return NextResponse.json({ error: 'No fields provided' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('events')
+    .update(body)
+    .eq('id', id)
+    .select()
+    .single<EventRow>();
+
+  if (error || !data) {
+    return NextResponse.json(
+      { error: error?.message || 'Event not found' },
+      { status: error ? 400 : 404 }
+    );
+  }
+
+  return NextResponse.json(data);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string }}) {
-  const { id } = params;
-  try {
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', id);
+// DELETE
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
 
-    if (error) throw error;
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', id);
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to delete event', details: err }, { status: 500 });
+  if (error) {
+    return NextResponse.json(
+      { error: 'Delete failed', details: error.message },
+      { status: 400 }
+    );
   }
+
+  return NextResponse.json({ success: true });
 }
